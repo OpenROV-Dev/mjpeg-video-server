@@ -60,7 +60,10 @@ validator(program,function(err){
      console.log("Options error: " + err);
      process.exit(1);
   } else {
-     monitor.start();
+     var camera=require('camera.js');
+     camera.MJPGCameraFound(function(){
+       monitor.start();
+
+     });
   }
 });
-
