@@ -21,6 +21,7 @@ program
   .option('-p, --port <port>','Webserver http port (default:8090)',parseInt,8090)
   .option('-l, --location <location>' , 'Camera mounted location (default: forward)','forward')
   .option('-u, --url <url>','A URL relative to the the server that the camera feed can be access','/rov/forward-camera')
+  .option('-m, --mock <mock>','Run a fake camera feed',false)
   .parse(process.argv);
 
 var validator = require('validateOptions');
@@ -36,6 +37,10 @@ var launch_options = ['mjpg_streamer',
     '-o',
     '/usr/local/lib/output_http.so -p ' + options.port
   ];
+
+if (options.mock){
+  launch_options[0]=require.resolve('mock-video-server.js');
+}
 var respawn = require('respawn')
 
 const infinite=-1;
@@ -56,6 +61,10 @@ monitor.on('stop',function(){
 });
 
 validator(program,function(err){
+  if (options.mock){
+    monitor.start();
+    return;
+  }
   if (err) {
      console.log("Options error: " + err);
      process.exit(1);
