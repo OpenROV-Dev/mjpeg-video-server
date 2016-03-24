@@ -50,14 +50,16 @@ var monitor = respawn(launch_options,{
   sleep: 1000
 });
 
-var mdns;
 monitor.on('spawn',function(){
-  mdns = require('mDNS-SD')('mjpeg-video',options.port,{resolution: options.resolution, framerate: options.framerate, videoMimeType: 'video/x-motion-jpeg', cameraLocation: options.location, relativeServiceUrl:options.url});
+  var announcement = {service:'mjpeg-video',port:options.port,addresses:['127.0.0.1'],txtRecord:{resolution: options.resolution, framerate: options.framerate, videoMimeType: 'video/x-motion-jpeg', cameraLocation: options.location, relativeServiceUrl:options.url}};
+  console.error(JSON.stringify(announcement));
 });
 
 monitor.on('stop',function(){
-//unregister with mDNS
-  mdns.stop();
+});
+
+monitor.on('stderr',function(data){
+  console.error(data).toString('utf-8');
 });
 
 validator(program,function(err){
