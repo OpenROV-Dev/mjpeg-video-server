@@ -50,9 +50,17 @@ var monitor = respawn(launch_options,{
   sleep: 1000
 });
 
+var beacon_timer = null;
 monitor.on('spawn',function(){
   var announcement = {service:'mjpeg-video',port:options.port,addresses:['127.0.0.1'],txtRecord:{resolution: options.resolution, framerate: options.framerate, videoMimeType: 'video/x-motion-jpeg', cameraLocation: options.location, relativeServiceUrl:options.url}};
-  console.error(JSON.stringify(announcement));
+  var jannouncement =  JSON.stringify(announcement);
+  console.error(jannouncement);
+  if (beacon_timer !== null){
+    clearInterval(beacon_timer);
+  }
+  beacon_timer=setInterval(function(){
+      console.error(jannouncement);
+  },5000);
 });
 
 monitor.on('stop',function(){
