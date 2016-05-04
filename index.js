@@ -13,6 +13,7 @@ require('module').Module._initPaths();
 
 var program=require("commander");
 
+var _device;
 program
   .arguments('<device>')
   .usage('[options <device>]')
@@ -22,18 +23,22 @@ program
   .option('-l, --location <location>' , 'Camera mounted location (default: forward)','forward')
   .option('-u, --url <url>','A URL relative to the the server that the camera feed can be access','/rov/forward-camera')
   .option('-m, --mock <mock>','Run a fake camera feed',false)
+  .action(function(device){
+    _device = device;
+   })
   .parse(process.argv);
 
 var validator = require('validateOptions');
 
 var options=program;
+options.device = _device;
 if (options.device == undefined){
   options.device = '/dev/video0';
 }
 
 var launch_options = ['mjpg_streamer',
     '-i',
-    '/usr/local/lib/input_uvc.so -r ' + options.resolution + ' -f ' + options.framerate,
+    '/usr/local/lib/input_uvc.so -r ' + options.resolution + ' -f ' + options.framerate + ' -d ' + options.device,
     '-o',
     '/usr/local/lib/output_http.so -p ' + options.port
   ];
@@ -67,7 +72,8 @@ monitor.on('stop',function(){
 });
 
 monitor.on('stderr',function(data){
-  console.error(data).toString('utf-8');
+  if (data===undefined) return;
+  console.error(data.toString('utf-8'));
 });
 
 validator(program,function(err){
@@ -80,7 +86,7 @@ validator(program,function(err){
      process.exit(1);
   } else {
      var camera=require('camera.js');
-     camera.MJPGCameraFound(function(){
+     camera.MJPGCameraFound(options.device,function(){
        monitor.start();
 
      });
