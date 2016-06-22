@@ -1,0 +1,49 @@
+var Q = require( "q" );
+
+module.exports = function() {
+
+    var deferred = Q.defer()
+
+    var program     = require("commander");
+    var validator   = require('validateOptions');
+
+    // Get command line arguments
+    var _device;
+    program
+        .arguments('<device>')
+        .usage('[options <device>]')
+        .option('-r, --resolution <resolution>', 'Video resolution (default: 1920x1080)','1920x1080')
+        .option('-f, --framerate <framerate>',' Video framerate (default: 30)',parseInt,30)
+        .option('-p, --port <port>','Webserver http port (default:8090)',parseInt,8090)
+        .option('-l, --location <location>' , 'Camera mounted location (default: forward)','forward')
+        .option('-u, --url <url>','A URL relative to the the server that the camera feed can be access','/rov/forward-camera')
+        .option('-m, --mock <mock>','Run a fake camera feed',false)
+        .option('-z, --zeromq <zeromq>', 'Use ZeroMQ on <zeromq> as an output plugin', 'ipc:///tmp/mjpg-streamer.ipc')
+        .action(function(device){
+            _device = device;
+        })
+        .parse(process.argv);
+
+    var options = program;
+    options.device = _device;
+    options.wspath = "/mjpeg-video"
+
+    if (options.device == undefined){
+        options.device = '/dev/video0';
+    }
+        
+    // Validate and set arguments
+    validator(program, function(err) {
+    //todo rearrange 
+
+        if (err) {
+            deferred.reject("Error parsing arguments: " + err);
+        } 
+        else {
+            deferred.resolve(options);
+        }
+    });
+
+    return deferred.promise;
+
+};
