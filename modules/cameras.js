@@ -99,7 +99,7 @@ Cameras.prototype.StartScanner = function() {
         .done( function()
         {
             // setTimeout( UpdateCameras, 5000 );
-            setTimeout( UpdateCameras, 500000000 );
+            setTimeout( UpdateCameras, 5000 );
         })
     };
 
@@ -216,6 +216,7 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
     var subPath = '/home/roboto/devel/camera/mjpg-streamer/tmp/mjpg-streamer_install/usr/local';
 
     var camera = self.availableCameras[ cameraIndex ].usbInfo;
+    var log = require('debug')( 'app:log:' + camera.name );
 
 	// Create all launch options
     var launch_options = [subPath +'/bin/' + exe,
