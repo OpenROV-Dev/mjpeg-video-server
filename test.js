@@ -19,6 +19,15 @@ var videoServer = io.connect( 'http://localhost:' + defaults.port, { path: defau
     // self.deps.globalEventLoop.emit('video-deviceRegistration',update);
   } );
 
+  videoServer.on('mjpeg-video.channel.api', function(data) {
+    
+    var video = io.connect( 'http://localhost:' + defaults.port, { path: data.wsPath, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 10 } );
+    video.on('x-motion-jpeg.data', function(data) {
+      console.log('got frame, size: ' + data.length);
+    });    
+    
+  })
+
   // Upon connecting to video server, set up listeners
   videoServer.on( "connect", function()
   {

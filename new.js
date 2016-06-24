@@ -42,12 +42,17 @@ optionValidator()
         options.socket.on('connection', function(client) {
             // Listen for ready message from server plugin
             console.log( "New mjpeg-video-server connection!" );
-            cameras.Update();
+
+            var cameras = new Cameras(options);
+            cameras.ListenForCameraRegistrations();
+//            cameras.StartScanner();
+
+            cameras.on('video-deviceRegistration', function(update) {
+                options.socket.emit('video-deviceRegistration', update);
+            });
 
         });
 
-        var cameras = new Cameras(options);
-        cameras.StartScanner();
 
     })
 

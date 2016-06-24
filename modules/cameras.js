@@ -1,24 +1,23 @@
-const fs=require('fs');
-const exec=require('child_process').exec;
-const respawn 	= require('respawn');
+const fs            = require('fs');
+const exec          = require('child_process').exec;
+const respawn 	    = require('respawn');
 
-var Q = require( "q" );
+var Q               = require( "q" );
 var EventEmitter    = require('events').EventEmitter;
 var util            = require('util');
 var log            	= require('debug')( 'app:log' );
 var error	    	= require('debug')( 'app:error' );
+var zmq			    = require('zmq');
 
-
-
-var readdir     = Q.denodeify( fs.readdir );
-var readFile    = Q.denodeify( fs.readFile );
-
+var readdir         = Q.denodeify( fs.readdir );
+var readFile        = Q.denodeify( fs.readFile );
 
 var Cameras = function(options) {
     var self = this;
     EventEmitter.call(this);
     
     self.availableCameras = {};
+    self.registeredCameras = {};
     self.options = options;
 
     return self;
@@ -75,10 +74,6 @@ Cameras.prototype.GetCameras = function() {
 
 
 
-Cameras.prototype.Update = function() {
-
-}
-
 Cameras.prototype.StartScanner = function() {
     var self = this;
 
@@ -91,7 +86,8 @@ Cameras.prototype.StartScanner = function() {
         .then( function(cameras) { return self.RemoveStaleCameras(cameras); } )
         .then( function(cameras) { return self.SetupCameras(cameras); } )
         .then( function(cameras) { return self.StartDaemons(cameras); } )
-        // .then( self.PostDeviceRegistrations )
+        .then( function() { self.PostDeviceRegistrations(); } )
+
         .catch( function( err )
         {
             error( "Error updating cameras: " + err );
@@ -197,8 +193,11 @@ Cameras.prototype.StartDaemons = function()
 		{
 			if( camera.usbInfo )
 			{
-				log( "Creating daemon for: " + index );
-				self.StartDaemon( index );
+                // TODO: Currently only start the camera passed in in the options
+                if (camera.usbInfo.path === self.options.device) {
+                    log( "Creating daemon for: " + index );
+                    self.StartDaemon( index );
+                }
 			}
 		}
 	}
@@ -222,7 +221,8 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
     var launch_options = [subPath +'/bin/' + exe,
         '-i', subPath+'/lib/input_uvc.so -r ' + self.options.resolution + ' -f ' + self.options.framerate + ' -d ' + camera.path,
         '-o'];
-    launch_options.push( subPath+'/lib/output_zmq.so -u ' + self.options.zeromq + '/' + camera.name);
+    //launch_options.push( subPath+'/lib/output_zmq.so -u ' + self.options.zeromq + '/' + camera.name);
+    launch_options.push( subPath+'/lib/output_zmq.so');
 	
 	const infinite = -1;
 
@@ -231,7 +231,8 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
 	{
 		name: exe +"[" + camera.name + "]",
 		maxRestarts: infinite,
-		sleep: 15000
+		sleep: 15000,
+        env: { DEBUG: 'app:log' }
 	} );
 	
 	self.availableCameras[ cameraIndex ].daemon.on('crash',function()
@@ -254,11 +255,10 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
 		log( exe +"[" + camera.name + "] exited: code: " + code + " signal: " + signal);
 
 		// Remove from registered cameras
-		//TODO Registrations
-        // if( registeredCameras[ camera ] !== undefined )
-		// {
-		// 	delete registeredCameras[ camera ];
-		// }
+        if( self.registeredCameras[ camera ] !== undefined )
+		{
+			delete self.registeredCameras[ camera ];
+		}
 	});
 
 	// Optional stdio logging
@@ -278,6 +278,50 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
 	self.availableCameras[ cameraIndex ].daemon.start();
 }
 
+Cameras.prototype.ListenForCameraRegistrations = function() 
+{
+	var self = this;
+	// Setup ZMQ camera registration REQ/REP 
+	var regServer = zmq.socket( 'rep' );
+
+	regServer.on( 'message', function( msg )
+	{
+		try
+		{
+			var registration = JSON.parse( msg );
+
+			if( registration.type === "camera_registration" )
+			{
+				log( "Camera registration request: " + registration.name );
+				
+				// Create a channel object
+				self.registeredCameras[ registration.name ] = require( "camera.js" )( registration, self.options );
+				log( "Camera " + registration.name + " registered" );
+
+				// Create a channel object
+				self.registeredCameras[ registration.name ].emit( "channel_registration", registration.name, function()
+				{					
+					log( "Channel " + registration.name + " registered" );
+				} );
+
+
+				// Send registration success to daemon
+				//TODO receive response: regServer.send( JSON.stringify( { "response": 1 } ) );
+			}
+		}
+		catch( err )
+		{
+			error( "Error in registration: " + err );
+			
+			// Send registration failure to daemon
+			regServer.send( JSON.stringify( { "response": 0 } ) );
+		}
+	} );
+  	// Listen for camera and channel registrations over ZeroMQ
+	regServer.bind( "ipc:///tmp/mjpg-streamer-register.ipc" );
+
+};
+
 Cameras.prototype.PostDeviceRegistrations = function() 
 {
     var self = this;
@@ -289,8 +333,8 @@ Cameras.prototype.PostDeviceRegistrations = function()
 		{
 			var n = {
 				device: self.availableCameras[ index ].usbInfo.offset,
-				deviceid: "test",
-				format: 'MP4'
+				deviceid: self.availableCameras[ index ].usbInfo.name,
+				format: 'MJPEG'
 			};
 
 			log( "new device: " + JSON.stringify( n ) );
@@ -301,7 +345,7 @@ Cameras.prototype.PostDeviceRegistrations = function()
 	Object.keys( self.availableCameras ).map( GetRegistrationInfo );
 
 	log( "Emitting video info" );
-	plugin.emit('video-deviceRegistration',update);
+    return Q.fcall(function() { self.emit('video-deviceRegistration',update); });	
 }
 
 util.inherits(Cameras, EventEmitter);
