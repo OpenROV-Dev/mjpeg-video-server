@@ -26,6 +26,53 @@ var Channel = function( camera, zmqUrl )
     var videoSocketPath = camera.options.wspath + channelPostfix;
 	var videoSocket		= require('socket.io')(server,{origins: '*:*',path: videoSocketPath});
 	
+
+	var dataFrameSub = zmq.socket( 'sub' );
+	dataFrameSub.connect( videoEndpoint );
+	dataFrameSub.subscribe("");
+
+	
+	// Register to video data
+	dataFrameSub.on( 'message', function(data )
+	{
+		//log( "Packet received: " + data.length );
+		
+		// Forward packets over socket.io
+		videoSocket.compress(false).volatile.emit( 'x-motion-jpeg.data', data );
+	} );		
+
+	// // Report the API to socket
+    // socket.emit( "mjpeg-video.channel.api", { camera: camera.name, wsPath: videoSocketPath } );
+
+	// Announce video source as json object on stderr
+	var announcement = 
+	{ 
+		service:	'mjpeg-video',
+		port:		camera.options.port,
+		addresses:	['127.0.0.1'],
+		txtRecord:
+		{
+			resolution: 		camera.options.resolution, //self.settings.width.value.toString() + "x" + self.settings.height.value.toString(),
+			framerate: 			camera.options.framerate,//self.settings.framerate.value,
+			videoMimeType: 		'video/x-motion-jpeg',
+			cameraLocation: 	camera.location,
+			relativeServiceUrl: ':'+camera.options.port,//camera.options.url,  
+			wspath: 			videoSocketPath
+		}
+	};
+
+	//socket.on('connect', function())	
+	socket.emit( "mjpeg-video.channel.announcement", camera.name, announcement );
+	log( "Channel Announcement: " + JSON.stringify( announcement ) );	
+
+	// Announce camera endpoint every 5 secs
+	setInterval( function()
+	{
+		socket.emit( "mjpeg-video.channel.announcement", camera.name, announcement );
+		console.log( "Channel Announcement: " + JSON.stringify( announcement ) );	
+	}, 5000 );
+
+
 	// // Set up api event listener
 	// var apiSub = zmq.socket( 'sub' );
 	// apiSub.connect( eventEndpoint );
@@ -56,9 +103,7 @@ var Channel = function( camera, zmqUrl )
 	// initFrameSub.connect( videoEndpoint );
 	// initFrameSub.subscribe( "i" );
 	
-	var dataFrameSub = zmq.socket( 'sub' );
-	dataFrameSub.connect( videoEndpoint );
-	dataFrameSub.subscribe("");
+
 	
 	// // -------------------
 	// // Event listeners
@@ -83,9 +128,6 @@ var Channel = function( camera, zmqUrl )
 		
 	// 	// Update our local api
 	// 	self.api = api;
-		
-    // Report the API to socket
-    socket.emit( "mjpeg-video.channel.api", { camera: camera.name, wsPath: videoSocketPath } );
 		
 	// 	// TODO: Load stored settings for this camera, or load them from currently selected settings profile in cockpit
 	// 	// Set some initial settings
@@ -123,14 +165,7 @@ var Channel = function( camera, zmqUrl )
 	// 	socket.emit( "geomux.channel.health", camera.offset, channelNum, JSON.parse( data ) );
 	// } );
 	
-	// Register to video data
-	dataFrameSub.on( 'message', function(data )
-	{
-		//log( "Packet received: " + data.length );
-		
-		// Forward packets over socket.io
-		videoSocket.compress(false).volatile.emit( 'x-motion-jpeg.data', data );
-	} );
+
 	
 	// // Listen for the init frame
 	// initFrameSub.on( 'message', function( topic, data )
@@ -150,25 +185,7 @@ var Channel = function( camera, zmqUrl )
 	// 		});
 	// 	});
 
-	// 	// Announce video source as json object on stderr
-    //     var announcement = 
-	// 	{ 
-	// 		service:	'geomux',
-	// 		port:		defaults.port,
-	// 		addresses:	['127.0.0.1'],
-	// 		txtRecord:
-	// 		{
-	// 			resolution: 		self.settings.width.value.toString() + "x" + self.settings.height.value.toString(),
-	// 			framerate: 			self.settings.framerate.value,
-	// 			videoMimeType: 		'video/mp4',
-	// 			cameraLocation: 	camera.location,
-	// 			relativeServiceUrl: defaults.url,  
-	// 			wspath: 			defaults.wspath + channelPostfix
-	// 		}
-	// 	};
-		
-	// 	socket.emit( "geomux.video.announcement", camera.offset, channelNum, announcement );
-	// 	log( "Channel Announcement: " + JSON.stringify( announcement ) );
+
 		
 	// 	// Create interval timer
     //     if( beaconTimer !== null )

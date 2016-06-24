@@ -18,7 +18,7 @@ module.exports = function() {
         .option('-l, --location <location>' , 'Camera mounted location (default: forward)','forward')
         .option('-u, --url <url>','A URL relative to the the server that the camera feed can be access','/rov/forward-camera')
         .option('-m, --mock <mock>','Run a fake camera feed',false)
-        .option('-z, --zeromq <zeromq>', 'Use ZeroMQ on <zeromq> as an output plugin', 'ipc:///tmp/mjpg-streamer.ipc')
+        .option('-e, --enumerate <enumerate>', 'Enumerate devices and print them on stdout', false)
         .action(function(device){
             _device = device;
         })

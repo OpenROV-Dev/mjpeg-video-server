@@ -19,9 +19,9 @@ var videoServer = io.connect( 'http://localhost:' + defaults.port, { path: defau
     // self.deps.globalEventLoop.emit('video-deviceRegistration',update);
   } );
 
-  videoServer.on('mjpeg-video.channel.api', function(data) {
-    
-    var video = io.connect( 'http://localhost:' + defaults.port, { path: data.wsPath, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 10 } );
+  videoServer.on('mjpeg-video.channel.announcement', function(camera, data) {
+    console.log('mjpeg-video.channel.announcement');    
+    var video = io.connect( 'http://localhost:' + data.port, { path: data.txtRecord.wspath, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 10 } );
     video.on('x-motion-jpeg.data', function(data) {
       console.log('got frame, size: ' + data.length);
     });    
