@@ -222,7 +222,8 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
         '-i', subPath+'/lib/input_uvc.so -r ' + self.options.resolution + ' -f ' + self.options.framerate + ' -d ' + camera.path,
         '-o'];
     //launch_options.push( subPath+'/lib/output_zmq.so -u ' + self.options.zeromq + '/' + camera.name);
-    launch_options.push( subPath+'/lib/output_zmq.so');
+    launch_options.push( subPath+'/lib/output_zmq.so -e');
+    //launch_options.push( subPath+'/lib/output_zmq.so');
 	
 	const infinite = -1;
 

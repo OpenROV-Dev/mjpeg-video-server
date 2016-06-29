@@ -25,7 +25,8 @@ var Channel = function( camera, zmqUrl )
 
 	// Create video socket
     var videoSocketPath = camera.options.wspath + channelPostfix;
-	var videoSocket		= new BinaryServer({server: server, origins: '*:*',path: videoSocketPath}); //require('socket.io')(server,{origins: '*:*',path: videoSocketPath});
+	//var videoSocket		= new BinaryServer({server: server, origins: '*:*',path: videoSocketPath}); 
+	var videoSocket		= require('socket.io')(server,{origins: '*:*',path: videoSocketPath});
 	
 	var clients = {};
 
@@ -33,43 +34,41 @@ var Channel = function( camera, zmqUrl )
 	dataFrameSub.connect( videoEndpoint );
 	dataFrameSub.subscribe("");
 	
-	videoSocket.on('connection', function(client){ 
-		clients[client.id] = { client: client, stream: client.createStream()}
-		console.log('Connected client');
-		client.on('close', function() {
-			delete clients[this.id];
-		});
-	});
+	// videoSocket.on('connection', function(client){ 
+	// 	clients[client.id] = { client: client, stream: client.createStream()}
+	// 	console.log('Connected client');
+	// 	client.on('close', function() {
+	// 		delete clients[this.id];
+	// 	});
+	// });
 	
 	
-         function Uint8ToString(u8a){
-            var CHUNK_SZ = 0x8000;
-            var c = [];
-            for (var i=0; i < u8a.length; i+=CHUNK_SZ) {
-              c.push(String.fromCharCode.apply(null, u8a.subarray(i, i+CHUNK_SZ)));
-            }
-            return c.join("");
-          };
-
-var tick =false;
 	// Register to video data
 	dataFrameSub.on( 'message', function(data )
 	{
 		log( "Packet received: " + data.length );
 		
 		// Forward packets over socket.io
-		//videoSocket.compress(false).volatile.emit( 'x-motion-jpeg.data', {data: data, timestamp: Date.now()} );
-		for(var clientId in clients) {
-			var client = clients[clientId];
+		
+		// base64
+		videoSocket.compress(false).volatile.emit( 'x-motion-jpeg.data', {data: data.toString('utf-8'), timestamp: Date.now()} );
+		
+		// binary
+		// videoSocket.compress(false).volatile.emit( 'x-motion-jpeg.data', {data: data, timestamp: Date.now()} );
+		
+		
+		
+		// for(var clientId in clients) {
+		// 	var client = clients[clientId];
 
-            // var u8 = new Uint8Array(data);
-            // var b64encoded = u8.toString('base64') //btoa(Uint8ToString(u8));
-			//var b64encoded = new Buffer(data).toString('base64');
+        //     // var u8 = new Uint8Array(data);
+        //     // var b64encoded = u8.toString('base64') //btoa(Uint8ToString(u8));
+		// 	//var b64encoded = new Buffer(data).toString('base64');
 
-			// client.stream.write( { data: b64encoded, timestamp: Date.now()});
-			var test = data.toString('utf-8');
-			client.stream.write( { data: test, timestamp: Date.now()});
-		}
+		// 	// client.stream.write( { data: b64encoded, timestamp: Date.now()});
+		// 	var test = data.toString('utf-8');
+		// 	client.stream.write( { data: test, timestamp: Date.now()});
+		// }
 	} );		
 
 	// // Report the API to socket
