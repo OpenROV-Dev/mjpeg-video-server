@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "binaryjs": "^0.2.1",
     "child-process-promise": "^2.0.3",
     "commander": "^2.9.0",
     "debug": "^2.2.0",

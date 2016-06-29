@@ -2,6 +2,7 @@
 
 
 const io      = require('socket.io-client');
+var BinaryClient  = require('binaryjs').BinaryClient
 
 
 var defaults =
@@ -21,10 +22,19 @@ var videoServer = io.connect( 'http://localhost:' + defaults.port, { path: defau
 
   videoServer.on('mjpeg-video.channel.announcement', function(camera, data) {
     console.log('mjpeg-video.channel.announcement');    
-    var video = io.connect( 'http://localhost:' + data.port, { path: data.txtRecord.wspath, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 10 } );
-    video.on('x-motion-jpeg.data', function(data) {
-      console.log('got frame, size: ' + data.length);
-    });    
+    //var video = io.connect( 'http://localhost:' + data.port, { path: data.txtRecord.wspath, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 10 } );
+    // video.on('x-motion-jpeg.data', function(data) {
+    //   console.log('got frame, size: ' + data.length);
+    // });
+    var video = new BinaryClient('http://localhost:' + data.port + data.txtRecord.wspath);  
+    video.on('open', function(stream) {
+      video.on('stream', function(stream, meta) {
+        console.log('STREAM');
+        stream.on('data', function(data) {
+          console.log('got frame, size: ' + data.length);
+        })
+      })
+    })
     
   })
 
