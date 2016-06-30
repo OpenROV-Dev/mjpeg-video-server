@@ -35,17 +35,25 @@ var Channel = function( camera, zmqUrl )
 	dataFrameSub.subscribe("");
 	
 	videoSocket.on('connection', function(client){ 
-		clients[client.id] = { client: client, stream: client.createStream()}
+		// clients[client.id] = { client: client, stream: client.createStream()}
+		clients[client.id] = { client: client}
 		console.log('Connected client');
 		client.on('close', function() {
 			delete clients[this.id];
 		});
 	});
 	
+	var fpsCounter = 0
 	
+	setInterval(function() {
+		console.log('FPS: ' + fpsCounter);
+		fpsCounter = 0;
+	}, 1000)
+
 	// Register to video data
 	dataFrameSub.on( 'message', function(data )
 	{
+		fpsCounter++;
 		log( "Packet received: " + data.length );
 		
 		// Forward packets over socket.io
@@ -68,7 +76,17 @@ var Channel = function( camera, zmqUrl )
 			// client.stream.write( { data: b64encoded, timestamp: Date.now()});
 			//var test = data.toString('utf-8');
 			//client.stream.write( { data: test, timestamp: Date.now()});
-			client.stream.write( { data: data, timestamp: Date.now() } );
+			try {
+			var stream = client.client.createStream(Date.now() );
+			stream.write( data );
+			// var stream = client.client.createStream();
+			// stream.write( { data: data, timestamp: Date.now() } );
+			stream.end();
+			}
+			catch(err) { 
+				//doh
+			}
+			// stream.destroy();
 		}
 	} );		
 
