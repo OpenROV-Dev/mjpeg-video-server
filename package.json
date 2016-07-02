@@ -16,6 +16,8 @@
     "q": "^1.4.1",
     "respawn": "^2.3.0",
     "socket.io": "^1.4.6",
+    "socket.io-stream": "^0.9.0",
+    "streamify": "^0.2.5",
     "zmq": "^2.15.3"
   }
 }

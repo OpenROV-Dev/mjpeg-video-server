@@ -25,8 +25,9 @@ var Channel = function( camera, zmqUrl )
 
 	// Create video socket
     var videoSocketPath = camera.options.wspath + channelPostfix;
-	var videoSocket		= new BinaryServer({server: server, origins: '*:*',path: videoSocketPath}); 
-	//var videoSocket		= require('socket.io')(server,{origins: '*:*',path: videoSocketPath});
+	// var videoSocket		= new BinaryServer({server: server, origins: '*:*',path: videoSocketPath}); 
+	var videoSocket		= require('socket.io')(server,{origins: '*:*',path: videoSocketPath});
+	var ss				= require('socket.io-stream');
 	
 	var clients = {};
 
@@ -34,14 +35,15 @@ var Channel = function( camera, zmqUrl )
 	dataFrameSub.connect( videoEndpoint );
 	dataFrameSub.subscribe("");
 	
-	videoSocket.on('connection', function(client){ 
-		// clients[client.id] = { client: client, stream: client.createStream()}
-		clients[client.id] = { client: client}
-		console.log('Connected client');
-		client.on('close', function() {
-			delete clients[this.id];
-		});
-	});
+	// binaryjs
+	// videoSocket.on('connection', function(client){ 
+	// 	// clients[client.id] = { client: client, stream: client.createStream()}
+	// 	clients[client.id] = { client: client}
+	// 	console.log('Connected client');
+	// 	client.on('close', function() {
+	// 		delete clients[this.id];
+	// 	});
+	// });
 	
 	var fpsCounter = 0
 	
@@ -50,11 +52,42 @@ var Channel = function( camera, zmqUrl )
 		fpsCounter = 0;
 	}, 1000)
 
+	// var ssSocket = ss(videoSocket.compress(false).volatile);
+	// var streamify = require('streamify');
+
+	videoSocket.on('connection', function(socket) {
+		console.log('Video socket connected ' + socket);
+		socket.on('register', function(clientId, clb){
+			if (clients[clientId] === undefined) {
+				clients[clientId] = { sockets: [], streams: [], lastStream: undefined };
+			}
+			var ssSocket = ss(socket);
+			var stream = ss.createStream();
+			clients[clientId].sockets.push(ssSocket);
+			clients[clientId].streams.push(stream);
+			clients[clientId].lastStream = clients[clientId].streams.length -1;
+
+			socket.on('disconnect', function() {
+				delete clients[clientId];
+			});
+
+			clb();
+			ssSocket.emit('x-motion-jpeg.data', stream, clientId);
+		});
+		// var client = { socket: ss(socket), stream: undefined};
+		// client.stream = ss.createStream();
+		// clients[socket] = client;
+		// clients[socket].socket.emit('x-motion-jpeg.data', client.stream);
+		// socket.on('disconnect', function() {
+		// 	delete clients[this];
+		// })
+	});
+
 	// Register to video data
 	dataFrameSub.on( 'message', function(data )
 	{
-		fpsCounter++;
-		log( "Packet received: " + data.length );
+		fpsCounter++
+		// console.log( "Packet received: " + data.length );
 		
 		// Forward packets over socket.io
 		
@@ -62,32 +95,44 @@ var Channel = function( camera, zmqUrl )
 		// videoSocket.compress(false).volatile.emit( 'x-motion-jpeg.data', {data: data.toString('utf-8'), timestamp: Date.now()} );
 		
 		// binary
-		// videoSocket.compress(false).volatile.emit( 'x-motion-jpeg.data', {data: data, timestamp: Date.now()} );
+		//videoSocket.compress(false).volatile.emit( 'x-motion-jpeg.data', {data: data, timestamp: Date.now()} );
+		//videoSocket.compress(true).volatile.emit( 'x-motion-jpeg.data', new Buffer(data));
 		
 		
-		
-		for(var clientId in clients) {
+		// BinaryJS		
+		// for(var clientId in clients) {
+		// 	var client = clients[clientId];
+
+		// 	try {
+		// 	var stream = client.client.createStream(Date.now() );
+		// 	stream.write( data );
+		// 	stream.end();
+		// 	}
+		// 	catch(err) { 
+		// 		//doh
+		// 	}
+		// }
+
+		// for (var clientId in clients) {
+		// 	var client = clients[clientId];
+		// 	//client.emit('x-motion-jpeg.data', data, { timestamp: Date.now()} );
+		// 	client.stream.write(data);
+		// } 
+
+		for (var clientId in clients) {
 			var client = clients[clientId];
 
-            // var u8 = new Uint8Array(data);
-            // var b64encoded = u8.toString('base64') //btoa(Uint8ToString(u8));
-			//var b64encoded = new Buffer(data).toString('base64');
+			var nextStreamIdx = client.lastStream;
+			if (nextStreamIdx +1 >= client.streams.length) { nextStreamIdx = 0; }
+			else { nextStreamIdx++; }
+			var stream = client.streams[nextStreamIdx];
+			if (stream) { stream.write(data); }
+		} 
 
-			// client.stream.write( { data: b64encoded, timestamp: Date.now()});
-			//var test = data.toString('utf-8');
-			//client.stream.write( { data: test, timestamp: Date.now()});
-			try {
-			var stream = client.client.createStream(Date.now() );
-			stream.write( data );
-			// var stream = client.client.createStream();
-			// stream.write( { data: data, timestamp: Date.now() } );
-			stream.end();
-			}
-			catch(err) { 
-				//doh
-			}
-			// stream.destroy();
-		}
+
+
+		// ssSocket
+		// 	.emit('x-motion-jpeg.data', data, { timestamp: Date.now()} );
 	} );		
 
 	// // Report the API to socket

@@ -2,6 +2,7 @@
 
 
 const io      = require('socket.io-client');
+const ss      = require('socket.io-stream');
 var BinaryClient  = require('binaryjs').BinaryClient
 
 
@@ -20,27 +21,68 @@ var videoServer = io.connect( 'http://localhost:' + defaults.port, { path: defau
     // self.deps.globalEventLoop.emit('video-deviceRegistration',update);
   } );
 
+var fpsCounter = 0;
+
+setInterval(function() {
+  console.log('FPS ' + fpsCounter);
+  fpsCounter = 0;
+}, 1000);
+
+  var videoChannels;
+  var clientId = Date.now();
   videoServer.on('mjpeg-video.channel.announcement', function(camera, data) {
     console.log('mjpeg-video.channel.announcement');    
-    //var video = io.connect( 'http://localhost:' + data.port, { path: data.txtRecord.wspath, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 10 } );
-    // video.on('x-motion-jpeg.data', function(data) {
-    //   console.log('got frame, size: ' + data.length);
-    // });
-    var video = new BinaryClient('http://localhost:' + data.port + data.txtRecord.wspath);  
-    video.on('open', function(stream) {
-      video.on('stream', function(stream, meta) {
-        console.log('STREAM');
-        stream.on('data', function(data) {
-          console.log('got frame, size: ' + data.length);
+    if (videoChannels == undefined) {
+      videoChannels = [];
+      for (var i = 0; i< 5; i++) {
+        var channel = io.connect( 'http://localhost:' + data.port, { path: data.txtRecord.wspath, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 10 } );
+        channel.on('connect', function(_socket) {
+          var _socket = this;
+          videoChannels[i] = _socket;
+          _socket.emit('register', clientId, function() {
+            var _ss = ss(_socket);
+            _ss.on('x-motion-jpeg.data', function(stream, data) {
+              console.log('got stream ');
+              var _stream = stream;
+              _stream.on('data', function(streamData) {
+                fpsCounter++;
+              })
+            });
+          })
+
+
         })
-      })
-    })
+
+      }
+    }
+    // if (video2 == undefined) {
+    //   video2 = io.connect( 'http://localhost:' + data.port, { path: data.txtRecord.wspath, reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 10 } );
+    //   ss(video2).on('x-motion-jpeg.data', function(stream, data) {
+    //     console.log('got stream ');
+    //     stream.on('data', function(streamData) {
+    //       fpsCounter++;
+    //     })
+    //   });
+    // }
+    
+
+
+    // BinaryJS
+    // var video = new BinaryClient('http://localhost:' + data.port + data.txtRecord.wspath);  
+    // video.on('open', function(stream) {
+    //   video.on('stream', function(stream, meta) {
+    //     console.log('STREAM');
+    //     stream.on('data', function(data) {
+    //       console.log('got frame, size: ' + data.length);
+    //     })
+    //   })
+    // })
     
   })
 
   // Upon connecting to video server, set up listeners
   videoServer.on( "connect", function()
-  {
+  { 
     console.log( "Successfully connected to geo-video-server" );
     
     // Tell geo-video-server to start the daemons
