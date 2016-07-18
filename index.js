@@ -69,6 +69,6 @@ optionValidator()
     })
 
     .catch(function(err) {
-        error(err);
+        console.error(err);
         process.exit(2);
     }); 

@@ -14,34 +14,12 @@ var Camera = function( registration, options )
 
     this.name     = registration.name;
     this.zmqUrl   = registration.url;
-    // this.commandPub = zmq.socket( 'pub' );
     
     var channels    = {};
     self.options    = options;
     
     // TODO: We need some way to map and remember which camera is which!
     this.location   = "forward";
-    
-    // Handle command requests for this camera from the cockpit plugin
-    // TODO commands
-    // this.on( "command", function( command, params )
-    // {
-    //     if( command == "chCmd" )
-    //     {
-    //         // Channel level commands
-    //         var channel = params.channel;
-            
-    //         if( channels[ channel ] !== undefined )
-    //         {
-    //             channels[ channel ].emit( "command", params.command, params.params );
-    //         }
-    //     }
-    //     else
-    //     {
-    //         // Camera level commands
-    //         SendCommand( command, params )
-    //     } 
-    // } );
     
     // Handle channel registrations
     this.on( "channel_registration", function( channelNum, callback )

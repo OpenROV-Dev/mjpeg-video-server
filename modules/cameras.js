@@ -5,8 +5,8 @@ const respawn 	    = require('respawn');
 var Q               = require( "q" );
 var EventEmitter    = require('events').EventEmitter;
 var util            = require('util');
-var log            	= require('debug')( 'app:log' );
-var error	    	= require('debug')( 'app:error' );
+var log            	= require('debug')( 'app:log:mjpeg' );
+var error	    	= require('debug')( 'app:error:mjpeg' );
 var zmq			    = require('zmq');
 
 var readdir         = Q.denodeify( fs.readdir );
@@ -94,7 +94,6 @@ Cameras.prototype.StartScanner = function() {
         } )
         .done( function()
         {
-            // setTimeout( UpdateCameras, 5000 );
             setTimeout( UpdateCameras, 5000 );
         })
     };
@@ -212,17 +211,15 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
 {
     var self = this;
     var exe = 'mjpg_streamer';
-    var subPath = '/home/roboto/devel/camera/mjpg-streamer/tmp/mjpg-streamer_install/usr/local';
+    var subPath = '/usr/local';
 
     var camera = self.availableCameras[ cameraIndex ].usbInfo;
-    var log = require('debug')( 'app:log:' + camera.name );
+    var log = require('debug')( 'app:log:mjpeg:' + camera.name );
 
 	// Create all launch options
     var launch_options = [subPath +'/bin/' + exe,
         '-i', subPath+'/lib/input_uvc.so -r ' + self.options.resolution + ' -f ' + self.options.framerate + ' -d ' + camera.path,
         '-o'];
-    //launch_options.push( subPath+'/lib/output_zmq.so -u ' + self.options.zeromq + '/' + camera.name);
-    // launch_options.push( subPath+'/lib/output_zmq.so -e');
     launch_options.push( subPath+'/lib/output_zmq.so');
 	
 	const infinite = -1;
