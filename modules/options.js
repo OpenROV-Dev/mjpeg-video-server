@@ -32,6 +32,7 @@ module.exports = function() {
         options.device = '/dev/video0';
     }
     options.resolution = '1280x720';
+    options.framerate = 15;
     // options.device = '/dev/video1';
         
     // Validate and set arguments

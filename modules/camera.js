@@ -38,25 +38,6 @@ var Camera = function( registration, options )
         }
     } );
     
-    // Connect to geomuxpp command socket
-    // this.commandPub.connect( "ipc:///tmp/geomux_command" + cameraOffset + ".ipc" );
-    
-    // ----------------
-	// Helper functions
-    	
-	function SendCommand( command, params )
-	{
-		// Send channel command over zeromq to geomuxpp
-		self.commandPub.send( 
-		[ 
-			"cmd",
-			JSON.stringify(
-			{
-				cmd: command,
-				params: params
-			} ) 	
-		] );
-	};
 };
 util.inherits(Camera, EventEmitter);
 

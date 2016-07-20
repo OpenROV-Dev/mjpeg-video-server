@@ -1,4 +1,6 @@
 var Q = require( "q" );
+var app = require('express')();
+
 
 module.exports = function(options) {
 

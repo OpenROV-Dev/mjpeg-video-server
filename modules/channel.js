@@ -13,6 +13,7 @@ var Channel = function( camera, zmqUrl )
 	
 	var log       	= require('debug')( 'channel:' + channelPostfix + ':log' );
     var error		= require('debug')( 'channel:' + channelPostfix + ':error' );
+	var fpsLog 		= require('debug')( 'fps:channel:' + channelPostfix + ':log' );
 	var BinaryServer = require('binaryjs').BinaryServer;
 
 	var videoStarted	= false;
@@ -27,7 +28,7 @@ var Channel = function( camera, zmqUrl )
     var videoSocketPath = camera.options.wspath + channelPostfix;
 	// var videoSocket		= new BinaryServer({server: server, origins: '*:*',path: videoSocketPath}); 
 	var videoSocket		= require('socket.io')(server,{origins: '*:*',path: videoSocketPath});
-	var ss				= require('socket.io-stream');
+	// var ss				= require('socket.io-stream');
 	
 	var clients = {};
 
@@ -42,43 +43,19 @@ var Channel = function( camera, zmqUrl )
 		fpsCounter = 0;
 	}, 1000)
 
+	var currentFrame = undefined;
+	var getCurrentFrame = function() { return currentFrame; };
+
 	videoSocket.on('connection', function(socket) {
 		console.log('Video socket connected ' + socket);
-		socket.on('register', function(clientId, clb){
-			if (clients[clientId] === undefined) {
-				clients[clientId] = { sockets: [], streams: [], lastStream: undefined };
-			}
-			var ssSocket = ss(socket);
-			var stream = ss.createStream();
-			clients[clientId].sockets.push(ssSocket);
-			clients[clientId].streams.push(stream);
-			clients[clientId].lastStream = clients[clientId].streams.length -1;
-
-			socket.on('disconnect', function() {
-				delete clients[clientId];
-			});
-
-			clb();
-			ssSocket.emit('x-motion-jpeg.data', stream, clientId);
-		});
 	});
 
 	// Register to video data
 	dataFrameSub.on( 'message', function(data )
 	{
-		fpsCounter++
-
-		for (var clientId in clients) {
-			var client = clients[clientId];
-
-			var nextStreamIdx = client.lastStream;
-			if (nextStreamIdx +1 >= client.streams.length) { nextStreamIdx = 0; }
-			else { nextStreamIdx++; }
-			var stream = client.streams[nextStreamIdx];
-			if (stream) { 
-				stream.write(data);
-			}
-		} 
+		videoSocket.compress(false).volatile.emit( 'x-motion-jpeg.data', data );
+		currentFrame = data;
+		fpsCounter++;
 	} );		
 
 	// // Report the API to socket
@@ -92,8 +69,8 @@ var Channel = function( camera, zmqUrl )
 		addresses:	['127.0.0.1'],
 		txtRecord:
 		{
-			resolution: 		camera.options.resolution, //self.settings.width.value.toString() + "x" + self.settings.height.value.toString(),
-			framerate: 			camera.options.framerate,//self.settings.framerate.value,
+			resolution: 		camera.options.resolution, 
+			framerate: 			camera.options.framerate,
 			videoMimeType: 		'video/x-motion-jpeg',
 			cameraLocation: 	camera.location,
 			relativeServiceUrl: serviceUrl,  
