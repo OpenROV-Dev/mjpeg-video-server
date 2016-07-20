@@ -219,8 +219,7 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
 	// Create all launch options
     var launch_options = [subPath +'/bin/' + exe,
         '-i', subPath+'/lib/input_uvc.so -r ' + self.options.resolution + ' -f ' + self.options.framerate + ' -d ' + camera.path,
-        '-o'];
-    launch_options.push( subPath+'/lib/output_zmq.so');
+        '-o', subPath+'/lib/output_zmq.so'];
 	
 	const infinite = -1;
 
@@ -229,8 +228,7 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
 	{
 		name: exe +"[" + camera.name + "]",
 		maxRestarts: infinite,
-		sleep: 15000,
-        env: { DEBUG: 'app:log' }
+		sleep: 15000
 	} );
 	
 	self.availableCameras[ cameraIndex ].daemon.on('crash',function()
@@ -272,7 +270,7 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
 		log( exe +"[" + camera.name + "] ERROR: " + msg );
 	});
 
-	console.log( "Starting " + exe +"[" + camera.name + "]..." );
+	log( "Starting " + exe +"[" + camera.name + "]..." );
 	self.availableCameras[ cameraIndex ].daemon.start();
 }
 
