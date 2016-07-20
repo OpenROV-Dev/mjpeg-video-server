@@ -11,10 +11,9 @@ var Channel = function( camera, zmqUrl )
 	var server			= camera.options.server;
 	var socket			= camera.options.socket;
 	
-	var log       	= require('debug')( 'channel:' + channelPostfix + ':log' );
-    var error		= require('debug')( 'channel:' + channelPostfix + ':error' );
-	var fpsLog 		= require('debug')( 'fps:channel:' + channelPostfix + ':log' );
-	var BinaryServer = require('binaryjs').BinaryServer;
+	var log       	= require('debug')( 'app:log:mjpeg:log:channel:' + channelPostfix );
+    var error		= require('debug')( 'app:log:mjpeg:error:channel:' + channelPostfix  );
+	var fpsLog 		= require('debug')( 'app:log:mjpeg:fps:channel:' + channelPostfix  );
 
 	var videoStarted	= false;
 	var beaconTimer 	= null;
@@ -39,7 +38,7 @@ var Channel = function( camera, zmqUrl )
 	var fpsCounter = 0
 	
 	setInterval(function() {
-		console.log('FPS: ' + fpsCounter);
+		fpsLog('FPS: ' + fpsCounter);
 		fpsCounter = 0;
 	}, 1000)
 
@@ -47,7 +46,7 @@ var Channel = function( camera, zmqUrl )
 	var getCurrentFrame = function() { return currentFrame; };
 
 	videoSocket.on('connection', function(socket) {
-		console.log('Video socket connected ' + socket);
+		log('Video socket connected ' + socket);
 	});
 
 	// Register to video data
@@ -86,7 +85,7 @@ var Channel = function( camera, zmqUrl )
 	setInterval( function()
 	{
 		socket.emit( "mjpeg-video.channel.announcement", camera.name, announcement );
-		console.log( "Channel Announcement: " + JSON.stringify( announcement ) );	
+		log( "Channel Announcement: " + JSON.stringify( announcement ) );	
 	}, 5000 );
 
 };
