@@ -14,8 +14,8 @@ require('module').Module._initPaths();
 
 const respawn 	= require('respawn');
 var zmq			= require('zmq');
-var log       	= require('debug')( 'app:log' );
-var error		= require('debug')( 'app:error' );
+var log       	= require('debug')( 'app:log:mjpeg' );
+var error		= require('debug')( 'app:error:mjpeg' );
 var path		= require( 'path' );
 var execP 		= require('child-process-promise').exec;
 var Q 			= require( "q" );
@@ -51,11 +51,11 @@ optionValidator()
     
     .then(function(options) {
 
+        var cameras = new Cameras(options);
         options.socket.on('connection', function(client) {
             // Listen for ready message from server plugin
             console.log( "New mjpeg-video-server connection!" );
 
-            var cameras = new Cameras(options);
             cameras.ListenForCameraRegistrations();
             cameras.StartScanner();
 
@@ -63,7 +63,13 @@ optionValidator()
                 options.socket.emit('video-deviceRegistration', update);
             });
 
+            client.on('video.start', function(device) {
+                log('#####################');
+                cameras.StartDaemon(device);
+            });
+
         });
+
 
 
     })

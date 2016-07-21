@@ -85,7 +85,7 @@ Cameras.prototype.StartScanner = function() {
         self.GetCameras()
         .then( function(cameras) { return self.RemoveStaleCameras(cameras); } )
         .then( function(cameras) { return self.SetupCameras(cameras); } )
-        .then( function(cameras) { return self.StartDaemons(cameras); } )
+        //.then( function(cameras) { return self.StartDaemons(cameras); } )
         .then( function() { self.PostDeviceRegistrations(); } )
 
         .catch( function( err )
@@ -179,41 +179,32 @@ Cameras.prototype.SetupCameras = function(cameras) {
     return Q.fcall(function() { return cameras; });
 }
 
-Cameras.prototype.StartDaemons = function()
+Cameras.prototype.StartDaemon = function( device )
 {
-    var self = this;
-	log( "Checking daemon status" );
+	var self = this;
+	var camera;
+	
+	log('Attemping to start daemon for device ' + device);
 
-	var Start = function( index )
-	{
-		var camera = self.availableCameras[ index ];
-
-		if( !camera.daemon )
-		{
-			if( camera.usbInfo )
-			{
-                // TODO: Currently only start the camera passed in in the options
-                if (camera.usbInfo.path === self.options.device) {
-                    log( "Creating daemon for: " + index );
-                    self.StartDaemon( index );
-                }
-			}
+	Object.keys(self.availableCameras).forEach(function(key) {
+		var cam = self.availableCameras[key];
+		if (cam.camInfo.device == device ) {
+			log('found cam');
+			self._StartDaemon(cam);
+			return;
 		}
-	}
+	})
+}
 
-	// All settled
-	var promises = Object.keys( self.availableCameras ).map( Start );
-
-	return Q.allSettled( promises );
-};
-
-Cameras.prototype.StartDaemon = function( cameraIndex )
+Cameras.prototype._StartDaemon = function( cam )
 {
     var self = this;
     var exe = 'mjpg_streamer';
     var subPath = '/usr/local';
 
-    var camera = self.availableCameras[ cameraIndex ].usbInfo;
+	if (cam.daemon) { return; } // already running
+
+    var camera = cam.usbInfo;
     var log = require('debug')( 'app:log:mjpeg:' + camera.name );
 
 	// Create all launch options
@@ -224,29 +215,29 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
 	const infinite = -1;
 
 	// Launch the video server with specified options. Attempt to restart every 1s.
-	self.availableCameras[ cameraIndex ].daemon = respawn( launch_options,
+	cam.daemon = respawn( launch_options,
 	{
 		name: exe +"[" + camera.name + "]",
 		maxRestarts: infinite,
 		sleep: 15000
 	} );
 	
-	self.availableCameras[ cameraIndex ].daemon.on('crash',function()
+	cam.daemon.on('crash',function()
 	{
 		log( exe +"[" + camera.name + "] crashed" );
 	});
 	
-	self.availableCameras[ cameraIndex ].daemon.on('spawn',function(process)
+	cam.daemon.on('spawn',function(process)
 	{
 		log( exe +"[" + camera.name + "] spawned" );
 	});
 	
-	self.availableCameras[ cameraIndex ].daemon.on('warn',function(error)
+	cam.daemon.on('warn',function(error)
 	{
 		log( exe +"[" + camera.name + "] warning: " + error );
 	});
 	
-	self.availableCameras[ cameraIndex ].daemon.on('exit',function(code, signal)
+	cam.daemon.on('exit',function(code, signal)
 	{
 		log( exe +"[" + camera.name + "] exited: code: " + code + " signal: " + signal);
 
@@ -258,20 +249,20 @@ Cameras.prototype.StartDaemon = function( cameraIndex )
 	});
 
 	// Optional stdio logging
-	self.availableCameras[ cameraIndex ].daemon.on('stdout',function(data)
+	cam.daemon.on('stdout',function(data)
 	{
 		var msg = data.toString('utf-8');
 		log( exe +"[" + camera.name + "]: " + msg );
 	});
 
-	self.availableCameras[ cameraIndex ].daemon.on('stderr',function(data)
+	cam.daemon.on('stderr',function(data)
 	{
 		var msg = data.toString('utf-8');
 		log( exe +"[" + camera.name + "] ERROR: " + msg );
 	});
 
 	log( "Starting " + exe +"[" + camera.name + "]..." );
-	self.availableCameras[ cameraIndex ].daemon.start();
+	cam.daemon.start();
 }
 
 Cameras.prototype.ListenForCameraRegistrations = function() 
