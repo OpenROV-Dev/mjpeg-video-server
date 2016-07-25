@@ -1,20 +1,47 @@
-//TODO: Move platform specific commands to external script
-const videoVerifyCommandTemplate = 'v4l2-ctl --list-formats-ext -d /dev/video0 | grep -q "Pixel Format: \'MJPG\'"';
+var zmq		        = require('zmq');
+var EventEmitter    = require('events').EventEmitter;
+var util            = require('util');
 
-var exec = require('child_process').exec;
 
+var Camera = function( registration, options )
+{
+    EventEmitter.call(this);
+    
+    var cameraName  = registration.name;
+    var self        = this;
+    var log       	= require('debug')( 'camera:' + cameraName + ':log' );
+    var error		= require('debug')( 'camera:' + cameraName + ':error' );
 
-module.exports = {
-  MJPGCameraFound: function(device,callback) {
-    videoVerifyCommand = videoVerifyCommandTemplate;
-    if (device !== null){
-      videoVerifyCommand=videoVerifyCommand.replace('/dev/video0',device);
-    }
-    var child = exec(videoVerifyCommand, function(err, stdout, stderr) {
-      if (!err) {
-        callback();
-      }
-    });
-  }
+    this.name     = registration.name;
+    this.zmqUrl   = registration.url;
+    
+    var channels    = {};
+    self.options    = options;
+    
+    // TODO: We need some way to map and remember which camera is which!
+    this.location   = "forward";
+    
+    // Handle channel registrations
+    this.on( "channel_registration", function( channelNum, callback )
+	  {
+        try
+        {
+            // Create a channel object
+            channels[ channelNum ] = require( "channel.js" )( self, self.zmqUrl );
+            
+            // Call success callback
+            callback();
+        }
+        catch( err )
+        {
+            throw "Channel registration failed: " + err;
+        }
+    } );
+    
+};
+util.inherits(Camera, EventEmitter);
 
-}
+module.exports = function( registration, options ) 
+{
+    return new Camera( registration, options );
+};
