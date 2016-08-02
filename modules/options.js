@@ -12,8 +12,8 @@ module.exports = function() {
     program
         .arguments('<device>')
         .usage('[options <device>]')
-        .option('-r, --resolution <resolution>', 'Video resolution (default: 1280×720)','1920x1080')
-        .option('-f, --framerate <framerate>',' Video framerate (default: 30)',parseInt,30)
+        .option('-r, --resolution <resolution>', 'Video resolution (default: 1280×720)','1280x720')
+        .option('-f, --framerate <framerate>',' Video framerate (default: 30)',parseInt,15)
         .option('-p, --port <port>','Webserver http port (default:8090)',parseInt,8090)
         .option('-l, --location <location>' , 'Camera mounted location (default: forward)','forward')
         .option('-u, --url <url>','A URL relative to the the server that the camera feed can be access','/rov/forward-camera')
@@ -31,9 +31,6 @@ module.exports = function() {
     if (options.device == undefined){
         options.device = '/dev/video0';
     }
-    options.resolution = '1280x720';
-    options.framerate = 15;
-    // options.device = '/dev/video1';
         
     // Validate and set arguments
     validator(program, function(err) {
