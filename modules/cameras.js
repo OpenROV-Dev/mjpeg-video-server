@@ -29,6 +29,12 @@ Cameras.prototype.GetCameras = function() {
     var results=[];
     var i=0;
 
+	if (this.options.mock){
+		var result = {device:'/dev/video0',format:'MJPEG',deviceid:"mock0"}
+		deferred.resolve([result]);
+		return deferred.promise;
+	}
+
     readdir('/dev')
         .then(function(files) {
 
@@ -190,7 +196,9 @@ Cameras.prototype.StartDaemon = function( device )
 		var cam = self.availableCameras[key];
 		if (cam.camInfo.device == device ) {
 			log('found cam');
-			self._StartDaemon(cam);
+			if(!cam.videoStarted){
+				self._StartDaemon(cam);
+			}
 			return;
 		}
 	})
@@ -198,6 +206,7 @@ Cameras.prototype.StartDaemon = function( device )
 
 Cameras.prototype._StartDaemon = function( cam )
 {
+	cam.videoStarted=true;
     var self = this;
     var exe = 'mjpg_streamer';
     var subPath = '/usr/local';
@@ -211,7 +220,11 @@ Cameras.prototype._StartDaemon = function( cam )
     var launch_options = [subPath +'/bin/' + exe,
         '-i', subPath+'/lib/input_uvc.so -r ' + self.options.resolution + ' -f ' + self.options.framerate + ' -d ' + camera.path,
         '-o', subPath+'/lib/output_zmq.so'];
-	
+
+	if (self.options.mock){
+		launch_options[0]=require.resolve('mock-video-server.js');
+	}	
+
 	const infinite = -1;
 
 	// Launch the video server with specified options. Attempt to restart every 1s.
@@ -240,7 +253,7 @@ Cameras.prototype._StartDaemon = function( cam )
 	cam.daemon.on('exit',function(code, signal)
 	{
 		log( exe +"[" + camera.name + "] exited: code: " + code + " signal: " + signal);
-
+		cam.videoStarted=false;
 		// Remove from registered cameras
         if( self.registeredCameras[ camera ] !== undefined )
 		{

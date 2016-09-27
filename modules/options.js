@@ -31,18 +31,22 @@ module.exports = function() {
     if (options.device == undefined){
         options.device = '/dev/video0';
     }
-        
-    // Validate and set arguments
-    validator(program, function(err) {
-    //todo rearrange 
 
-        if (err) {
-            deferred.reject("Error parsing arguments: " + err);
-        } 
-        else {
-            deferred.resolve(options);
-        }
-    });
+    options.mock = options.mock=='true'?true:options.mock;
+        
+    if(options.mock==true){
+         deferred.resolve(options);
+    }else {
+        validator(program, function(err) {
+        //todo rearrange 
+            if (err) {
+                deferred.reject("Error parsing arguments: " + err);
+            } 
+            else {
+                deferred.resolve(options);
+            }
+        });
+    }
 
     return deferred.promise;
 
