@@ -1,80 +1,59 @@
-#!/usr/bin/env node
+// Test With:
+// DEBUG="app:*" node App.js -p 8300 -c "data.pem" -k "key.pem"
 
 // To eliminate hard coding paths for require, we are modifying the NODE_PATH to include our lib folder
-var oldpath = '';
+var nodepath =  __dirname + "/:" + 
+                __dirname + "/lib/:" + 
+                process.env[ "COCKPIT_PATH" ] + "/lib:" +
+                ( ( process.env[ "NODE_PATH" ] !== undefined ) ? process.env[ "NODE_PATH" ] : "" );
 
-if( process.env[ 'NODE_PATH' ] !== undefined )
-{
-    oldpath = process.env[ 'NODE_PATH' ];
-}
+process.env["NODE_PATH"] = nodepath;
 
-// Append modules directory to path
-process.env['NODE_PATH'] = __dirname + '/:' + __dirname + "/modules/:" + oldpath;
-require('module').Module._initPaths();
+require( "module" ).Module._initPaths();
 
-const respawn 	= require('respawn');
-var zmq			= require('zmq');
-var log       	= require('debug')( 'app:log:mjpeg' );
-var error		= require('debug')( 'app:error:mjpeg' );
-var path		= require( 'path' );
-var execP 		= require('child-process-promise').exec;
-var Q 			= require( "q" );
-var fs			= require( "fs" );
-var util        = require('util');
-var io          = require('socket.io-client');
+// Logging utilities
+const log           = require( "debug" )( "app:log" );
+const error		    = require( "debug" )( "app:error" );
 
-var readdir     = Q.denodeify( fs.readdir );
-var readFile    = Q.denodeify( fs.readFile );
-
-var optionValidator = require('options.js');
-var StartHttpServer  = require('http-server.js');
-var StartSocketIO  = require('socket-io.js');
-
-var Cameras = require('cameras.js');
-
-
-// ----
-optionValidator()
-    .then(function(options) { 
-        if (options.enumerate) {
-            var cameras = new Cameras(options);
-            return cameras.GetCameras()
-                .then(function(camerars) {
-                    console.log(JSON.stringify(camerars));
-                    process.exit(0);
-                })
-        }
-        return options;
-    } )
-    .then(StartHttpServer)
-    .then(StartSocketIO)
-    
-    .then(function(options) {
-
-        var cameras = new Cameras(options);
-        options.socket.on('connection', function(client) {
-            // Listen for ready message from server plugin
-            console.log( "New mjpeg-video-server connection!" );
-
-            cameras.ListenForCameraRegistrations();
-            cameras.StartScanner();
-
-            cameras.on('video-deviceRegistration', function(update) {
-                options.socket.emit('video-deviceRegistration', update);
-            });
-
-            client.on('video.start', function(device) {
-                log('#####################');
-                cameras.StartDaemon(device);
-            });
-
-        });
-
-
-
+// Parse command line arguments
+var argv = require( "yargs" )
+    .usage( "Usage: $0 -p [port number] -c [certificate path] -k [key path]" )
+    .number( "p" )
+    .string( "c" )
+    .string( "k" )
+    .boolean( "m" )
+    .boolean( "h" )
+    .demand( [ "p", "c", "k" ] )
+    .fail( function (msg, err) 
+    {
+        error( "Error parsing arguments: " + msg );
+        error( "Exiting..." );
+        process.exit( 1 );
     })
+    .argv;
 
-    .catch(function(err) {
-        console.error(err);
-        process.exit(2);
-    }); 
+try
+{	
+    var settings =
+    {
+        port:           argv.p,                                         // Supervisor socket.io port number
+        cert:           argv.c,                                         // Absolute SSL Cert Path
+        key:            argv.k,                                         // Absolute SSL Key Path
+        useMock:        ( ( argv.m !== undefined ) ? argv.m : false ),  // Use mock mode
+        useHardware:    ( ( argv.h !== undefined ) ? argv.h : false )   // Use real hardware (true) or mock hardware (false)
+    }
+
+    // Create supervisor
+    const Supervisor    = require( "Supervisor" );
+    const supervisor    = new Supervisor( settings );
+
+    // Run supervisor
+    supervisor.run();
+}
+catch( err )
+{
+	error( "Error running supervisor: " + err );
+	error( "Exiting..." );
+
+	process.exit( 2 );
+}
